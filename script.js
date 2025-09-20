@@ -440,12 +440,16 @@ document.addEventListener('DOMContentLoaded', function() {
         this.selectedCoverURL = 'https://cdn.pixabay.com/photo/2018/01/03/09/09/book-3057902_1280.png';
       }
       
+      // Calcula la siguiente posición dentro de la saga
+      const booksInSeries = BookService.books.filter(b => b.series === series);
+      const newPosition = booksInSeries.length;
+
       const book = {
         // id ya no es necesario, lo genera Supabase
         title,
         author,
         series,
-        position: 0, // Por defecto, al crearlo. Podríamos mejorarlo para ponerlo al final.
+        position: newPosition, // Se coloca al final de la saga
         read: false, // Un libro nuevo siempre empieza como no leído
         cover: AppController.selectedCoverURL,
         rating: 0 // Nueva propiedad para la puntuación
@@ -1083,8 +1087,12 @@ document.addEventListener('DOMContentLoaded', function() {
         const author = form.elements['author-name'].value;
         let coverURL = this.selectedCoverURL || 'https://cdn.pixabay.com/photo/2018/01/03/09/09/book-3057902_1280.png';
 
+        // Calcula la siguiente posición dentro de la saga
+        const booksInSeries = BookService.books.filter(b => b.series === series);
+        const newPosition = booksInSeries.length;
+
         if (title && series && author) {
-          const newBook = { id: Date.now(), title, author, series, read: false, rating: 0, cover: coverURL };
+          const newBook = { title, author, series, position: newPosition, read: false, rating: 0, cover: coverURL };
           await BookService.addBook(newBook);
           UI.renderBooks();
           UI.showToast(`'${title}' añadido a la saga.`);
