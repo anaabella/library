@@ -19,7 +19,8 @@ document.addEventListener('DOMContentLoaded', function() {
     loadBooks: async function() {
       const { data, error } = await supabase
         .from('books')
-        .select('*');
+        .select('*')
+        .order('series', { ascending: true }).order('position', { ascending: true }); // Ordenamos por saga y luego por posición
 
       if (error) {
         console.error('Error cargando libros desde Supabase:', error);
@@ -325,22 +326,27 @@ document.addEventListener('DOMContentLoaded', function() {
     saveReorderedSaga: async function() {
       const sagaName = window._reorderSagaName;
       const list = document.getElementById('reorder-saga-list');
-      const newBookOrderIds = Array.from(list.children).map(item => parseInt(item.dataset.bookId));
+      const reorderedItems = Array.from(list.children);
 
-      // NOTA: Supabase no tiene una forma directa de reordenar.
-      // La forma más simple es añadir una columna 'position' o 'order' a tu tabla 'books'.
-      // Luego, aquí, actualizas el valor de esa columna para cada libro de la saga.
-      // Por ahora, el reordenado solo será visual y se perderá al recargar.
-      // Para hacerlo persistente, necesitarías modificar la tabla en Supabase.
+      // Creamos un array de objetos para actualizar en Supabase.
+      // Cada objeto tendrá el 'id' del libro y su nueva 'position'.
+      const updates = reorderedItems.map((item, index) => ({
+        id: parseInt(item.dataset.bookId),
+        position: index // La nueva posición es simplemente el índice en la lista reordenada.
+      }));
 
-      // Creamos un mapa para buscar libros por ID eficientemente
-      const bookMap = new Map(this.books.map(book => [book.id, book]));
+      // Actualizamos la base de datos con las nuevas posiciones.
+      const { error } = await supabase.from('books').upsert(updates);
 
-      // Reordenamos el array original de libros
-      const reorderedBooks = newBookOrderIds.map(id => bookMap.get(id));
-      const otherBooks = this.books.filter(book => book.series !== sagaName);
+      if (error) {
+        console.error('Error al guardar el nuevo orden:', error);
+        UI.showToast('No se pudo guardar el nuevo orden.', 'error');
+      } else {
+        // Si se guardó bien, recargamos los libros para reflejar el orden de la DB.
+        await this.loadBooks();
+        UI.showToast('Orden de la saga guardado.', 'success');
+      }
 
-      this.books = [...otherBooks, ...reorderedBooks];
       UI.renderBooks();
       ModalService.toggleModal('reorder-saga-modal', false);
     },
@@ -439,6 +445,7 @@ document.addEventListener('DOMContentLoaded', function() {
         title,
         author,
         series,
+        position: 0, // Por defecto, al crearlo. Podríamos mejorarlo para ponerlo al final.
         read: false, // Un libro nuevo siempre empieza como no leído
         cover: AppController.selectedCoverURL,
         rating: 0 // Nueva propiedad para la puntuación
@@ -564,13 +571,12 @@ document.addEventListener('DOMContentLoaded', function() {
       return { booksBySeries, sortedSeriesNames };
     },
 
-    createBookCard: function(book) {
+    createBookCard: function(book, index) { // Añadimos el índice como parámetro
       const card = document.createElement('div');
-      // Este div ahora es el contenedor general de la tarjeta (portada + texto)
-      card.className = 'book-card-container flex flex-col items-center'; 
-      card.draggable = true; // Habilitar que la tarjeta sea arrastrable
+      card.className = 'book-card-container flex flex-col items-center';
+      card.draggable = true;
       card.dataset.bookId = book.id;
-
+      card.dataset.index = index; // Guardamos el índice original para el drag and drop
       const readIconClass = book.read ? 'fas fa-check-circle text-green-500' : 'far fa-circle text-gray-400';
       const starsHTML = [1, 2, 3, 4, 5].map(i => `
         <span class="star ${book.rating >= i ? 'filled' : (book.rating >= i - 0.5 ? 'half-filled' : '')}" data-value="${i}">
@@ -633,8 +639,8 @@ document.addEventListener('DOMContentLoaded', function() {
       const seriesGrid = document.createElement('div');
       seriesGrid.className = 'grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-7 xl:grid-cols-8 gap-4';
 
-      booksInSeries.forEach(book => {
-        const card = this.createBookCard(book);
+      booksInSeries.forEach((book, index) => {
+        const card = this.createBookCard(book, index);
         seriesGrid.appendChild(card);
       });
 
