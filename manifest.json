@@ -2,7 +2,7 @@
   "name": "Anna's Library",
   "short_name": "Library",
   "description": "Una aplicación para organizar y hacer seguimiento de tus sagas de libros.",
-  "start_url": "/index.html",
+  "start_url": "./",
   "display": "standalone",
   "background_color": "#121212",
   "theme_color": "#a855f7",
