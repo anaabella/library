@@ -7,31 +7,46 @@ document.addEventListener('DOMContentLoaded', function() {
     })
   }
 
+  // --- Configuración de Supabase ---
+  const SUPABASE_URL = 'https://ntseicvopbxqozbgnstn.supabase.co'; // Pega aquí tu URL
+  const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im50c2VpY3ZvcGJ4cW96Ymduc3RuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTgzOTUzNzQsImV4cCI6MjA3Mzk3MTM3NH0.TNM9rQ_t4Dq_znHtxm_UHEl0KqC4yDY45Su8mKk1I2E'; // Reemplaza esto con la clave que copiaste de Supabase
+  const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  // ---------------------------------
+
   const BookService = {
     books: [],
 
-    loadBooks: function() {
-      const storedBooks = localStorage.getItem('sagaTracker_books');
-      if (storedBooks) {
-        const savedSort = localStorage.getItem('sagaTracker_sort');
-        if (savedSort) this.currentSort = savedSort;
+    loadBooks: async function() {
+      const { data, error } = await supabase
+        .from('books')
+        .select('*');
 
-        try {
-          this.books = JSON.parse(storedBooks);
-          console.log('Libros cargados:', this.books);
-        } catch(e) {
-          console.error('Error parsing stored books:', e);
-          this.books = [];
-        }
-      } else {
+      if (error) {
+        console.error('Error cargando libros desde Supabase:', error);
         this.books = [];
+      } else {
+        this.books = data;
+        console.log('Libros cargados desde Supabase:', this.books);
       }
     },
 
-    saveBooks: function() {
-      localStorage.setItem('sagaTracker_books', JSON.stringify(this.books));
-      localStorage.setItem('libraryModified', 'true'); // Marcar que hubo cambios
-      console.log('Libros guardados en localStorage:', this.books);
+    // saveBooks ya no es necesario, cada operación se guarda individualmente en Supabase.
+
+    addBook: async function(book) {
+      // Quitamos el ID que genera Date.now(), Supabase lo crea solo.
+      const { id, ...bookData } = book; 
+      const { data, error } = await supabase
+        .from('books')
+        .insert([bookData])
+        .select()
+        .single(); // .single() para obtener un solo objeto en lugar de un array
+      
+      if (error) {
+        console.error('Error añadiendo libro:', error);
+        return null;
+      }
+      this.books.push(data); // Añadimos el libro devuelto con el ID correcto
+      return data;
     },
 
     findCoverAndUpdateUI: function(bookInfo, spinner, errorDiv, previewImg, formToLock = null) {
@@ -86,20 +101,15 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     },
 
-    deleteBook: function(bookId) {
-      const card = document.querySelector(`.book-card-container[data-book-id="${bookId}"]`);
-      if (card) {
-        card.classList.add('card-exit'); // Aplica la animación de salida
-        card.addEventListener('transitionend', () => {
-          this.books = this.books.filter(b => b.id !== bookId);
-          this.saveBooks();
-          UI.renderBooks(); // Vuelve a renderizar después de la animación
-        }, { once: true }); // El listener se ejecuta solo una vez
-      } else {
-        // Fallback si no se encuentra la tarjeta (ej. borrado desde un modal)
+    deleteBook: async function(bookId) {
+      const { error } = await supabase
+        .from('books')
+        .delete()
+        .eq('id', bookId);
+
+      if (error) console.error('Error eliminando libro:', error);
+      else {
         this.books = this.books.filter(b => b.id !== bookId);
-        this.saveBooks();
-        UI.renderBooks();
       }
     },
 
@@ -167,8 +177,15 @@ document.addEventListener('DOMContentLoaded', function() {
             newBooks.push(book);
           }
           this.books = newBooks;
-          this.saveBooks();
-          UI.renderBooks();
+          // Aquí tendrías que hacer un `insert` masivo a Supabase
+          // NOTA: Esto es una operación avanzada. Por ahora, lo dejamos como carga local.
+          // Para sincronizar, habría que borrar los libros actuales y subir los nuevos.
+          // supabase.from('books').delete().neq('id', 0); // Borra todo
+          // supabase.from('books').insert(newBooks.map(({id, ...rest}) => rest)); // Inserta los nuevos
+          
+          // Por ahora, solo renderizamos lo importado localmente.
+          UI.renderBooks(); 
+          // Aquí tendrías que hacer un `insert` masivo a Supabase
           UI.showToast('Biblioteca importada con éxito.');
         } catch (e) {
           UI.showToast('Error al procesar el archivo CSV. Asegúrate de que el formato es correcto.', 'error');
@@ -245,17 +262,24 @@ document.addEventListener('DOMContentLoaded', function() {
       }
     },
 
-    toggleReadStatus: function(id) {
+    toggleReadStatus: async function(id) {
       const bookIndex = this.books.findIndex(book => book.id === id);
       if (bookIndex !== -1) {
-        this.books[bookIndex].read = !this.books[bookIndex].read;
-        if (!this.books[bookIndex].read) this.books[bookIndex].rating = 0; // Si se marca como no leído, se resetea la puntuación
-        this.saveBooks();
-        UI.renderBooks();
+        const newReadStatus = !this.books[bookIndex].read;
+        const newRating = newReadStatus ? this.books[bookIndex].rating : 0;
+
+        const { error } = await supabase.from('books').update({ read: newReadStatus, rating: newRating }).eq('id', id);
+        if (!error) {
+          this.books[bookIndex].read = newReadStatus;
+          this.books[bookIndex].rating = newRating;
+          UI.renderBooks();
+        } else {
+          console.error('Error actualizando estado de lectura:', error);
+        }
       }
     },
 
-    setRating: function(id, rating) {
+    setRating: async function(id, rating) {
       const bookIndex = this.books.findIndex(book => book.id === id);
       if (bookIndex !== -1) {
         const currentRating = this.books[bookIndex].rating;
@@ -264,16 +288,19 @@ document.addEventListener('DOMContentLoaded', function() {
         if (currentRating === rating) newRating = rating - 0.5; // Segundo clic: media estrella
         if (currentRating === rating - 0.5) newRating = 0; // Tercer clic: resetear
 
-        this.books[bookIndex].rating = newRating;
-        // La propiedad 'read' ahora depende directamente de la puntuación
-        this.books[bookIndex].read = newRating > 0;
-
-        this.saveBooks();
-        UI.renderBooks();
+        const newRead = newRating > 0;
+        const { error } = await supabase.from('books').update({ rating: newRating, read: newRead }).eq('id', id);
+        if (!error) {
+          this.books[bookIndex].rating = newRating;
+          this.books[bookIndex].read = newRead;
+          UI.renderBooks();
+        } else {
+          console.error('Error actualizando puntuación:', error);
+        }
       }
     },
 
-    saveEditedSaga: function(form) {
+    saveEditedSaga: async function(form) {
         const newName = capitalizeWords(form.elements['saga-name'].value.trim());
         const newAuthor = capitalizeWords(form.elements['saga-author'].value.trim());
         const oldName = capitalizeWords(window._editingSagaName);
@@ -281,21 +308,30 @@ document.addEventListener('DOMContentLoaded', function() {
           this.books.forEach(b => {
             if (capitalizeWords(b.series) === oldName) b.series = newName;
           });
+          // Actualizar en Supabase
+          await supabase.from('books').update({ series: newName }).eq('series', oldName);
         }
         if (newAuthor) {
           this.books.forEach(b => {
             if (capitalizeWords(b.series) === (newName || oldName)) b.author = newAuthor;
           });
+          // Actualizar en Supabase
+          await supabase.from('books').update({ author: newAuthor }).eq('series', newName || oldName);
         }
-        this.saveBooks();
         UI.renderBooks();
         ModalService.toggleModal('edit-saga-modal', false);
     },
 
-    saveReorderedSaga: function() {
+    saveReorderedSaga: async function() {
       const sagaName = window._reorderSagaName;
       const list = document.getElementById('reorder-saga-list');
       const newBookOrderIds = Array.from(list.children).map(item => parseInt(item.dataset.bookId));
+
+      // NOTA: Supabase no tiene una forma directa de reordenar.
+      // La forma más simple es añadir una columna 'position' o 'order' a tu tabla 'books'.
+      // Luego, aquí, actualizas el valor de esa columna para cada libro de la saga.
+      // Por ahora, el reordenado solo será visual y se perderá al recargar.
+      // Para hacerlo persistente, necesitarías modificar la tabla en Supabase.
 
       // Creamos un mapa para buscar libros por ID eficientemente
       const bookMap = new Map(this.books.map(book => [book.id, book]));
@@ -305,7 +341,6 @@ document.addEventListener('DOMContentLoaded', function() {
       const otherBooks = this.books.filter(book => book.series !== sagaName);
 
       this.books = [...otherBooks, ...reorderedBooks];
-      this.saveBooks();
       UI.renderBooks();
       ModalService.toggleModal('reorder-saga-modal', false);
     },
@@ -383,7 +418,7 @@ document.addEventListener('DOMContentLoaded', function() {
       // El reseteo del formulario ya se hace en openNewBookModal y al hacer submit.
     },
 
-    saveNewBook: function() {
+    saveNewBook: async function() {
       const form = document.getElementById('new-book-form');
       const title = capitalizeWords(form.querySelector('input[name="title"]').value.trim()) || 'Sin Título';
       const author = capitalizeWords(form.querySelector('input[name="author"]').value.trim()) || 'Sin Autor';
@@ -400,7 +435,7 @@ document.addEventListener('DOMContentLoaded', function() {
       }
       
       const book = {
-        id: Date.now(),
+        // id ya no es necesario, lo genera Supabase
         title,
         author,
         series,
@@ -409,8 +444,7 @@ document.addEventListener('DOMContentLoaded', function() {
         rating: 0 // Nueva propiedad para la puntuación
       };
       
-      BookService.books.push(book);
-      BookService.saveBooks();
+      await BookService.addBook(book);
       ModalService.toggleModal('new-book-modal', false);
       UI.renderBooks();
       this.showToast(`'${title}' ha sido añadido.`);
@@ -1006,9 +1040,10 @@ document.addEventListener('DOMContentLoaded', function() {
       // Modal Eliminar Libro (desde Saga)
       document.getElementById('cancel-delete-book-saga-btn').addEventListener('click', () => ModalService.toggleModal('delete-book-modal-saga', false));
       document.getElementById('confirm-delete-book-saga-btn').addEventListener('click', () => {
-        const bookId = window._deleteBookSagaId;
-        BookService.books = BookService.books.filter(b => b.id !== bookId);
-        BookService.saveBooks();
+        const bookIdToDelete = window._deleteBookSagaId;
+        // BookService.books = BookService.books.filter(b => b.id !== bookId);
+        // BookService.saveBooks();
+        BookService.deleteBook(bookIdToDelete);
         UI.renderBooks();
         ModalService.toggleModal('delete-book-modal-saga', false);
       });
@@ -1034,7 +1069,7 @@ document.addEventListener('DOMContentLoaded', function() {
       // Modal Añadir Libro a Saga
       document.getElementById('close-add-to-saga-modal').addEventListener('click', () => ModalService.toggleModal('add-book-to-saga-modal', false));
       document.getElementById('cancel-add-to-saga-btn').addEventListener('click', () => ModalService.toggleModal('add-book-to-saga-modal', false));
-      document.getElementById('add-book-to-saga-form').addEventListener('submit', (e) => {
+      document.getElementById('add-book-to-saga-form').addEventListener('submit', async (e) => {
         e.preventDefault();
         const form = e.target;
         const title = capitalizeWords(form.elements['title'].value.trim());
@@ -1044,8 +1079,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         if (title && series && author) {
           const newBook = { id: Date.now(), title, author, series, read: false, rating: 0, cover: coverURL };
-          BookService.books.push(newBook);
-          BookService.saveBooks();
+          await BookService.addBook(newBook);
           UI.renderBooks();
           UI.showToast(`'${title}' añadido a la saga.`);
         }
@@ -1222,20 +1256,23 @@ document.addEventListener('DOMContentLoaded', function() {
       );
 
       // Submit EDIT form
-      document.getElementById('edit-book-form').addEventListener('submit', (e) => {
+      document.getElementById('edit-book-form').addEventListener('submit', async (e) => {
         e.preventDefault();
         const form = e.target;
         const bookId = parseInt(form.elements['book-id'].value);
         const bookIndex = BookService.books.findIndex(b => b.id === bookId);
         if (bookIndex !== -1) {
-          BookService.books[bookIndex].title = capitalizeWords(form.elements['title'].value);
-          BookService.books[bookIndex].author = capitalizeWords(form.elements['author'].value.trim());
-          BookService.books[bookIndex].series = capitalizeWords(form.elements['series'].value.trim()) || 'Sin saga';
+          const updatedBook = {
+            title: capitalizeWords(form.elements['title'].value),
+            author: capitalizeWords(form.elements['author'].value.trim()),
+            series: capitalizeWords(form.elements['series'].value.trim()) || 'Sin saga',
+            cover: this.selectedCoverURL || BookService.books[bookIndex].cover
+          };
           // Si se encontró una nueva portada, se actualiza. Si no, se mantiene la original.
-          if (this.selectedCoverURL) {
-            BookService.books[bookIndex].cover = this.selectedCoverURL;
-          }
-          BookService.saveBooks();
+          const { error } = await supabase.from('books').update(updatedBook).eq('id', bookId);
+          if (error) console.error('Error actualizando libro:', error);
+          else Object.assign(BookService.books[bookIndex], updatedBook);
+
           UI.renderBooks();
           UI.showToast('Libro actualizado correctamente.');
         }
@@ -1292,9 +1329,10 @@ document.addEventListener('DOMContentLoaded', function() {
       // Reset library button
       document.getElementById('reset-library').addEventListener('click', () => {
         ModalService.showConfirmation(
-          'Esta acción no se puede deshacer. Para confirmar, escribe tu fecha de cumpleaños (DDMMAAAA).',
-          () => {
-            localStorage.removeItem('sagaTracker_books');
+          'Esta acción borrará TODOS los libros de la base de datos. Para confirmar, escribe tu fecha de cumpleaños (DDMMAAAA).',
+          async () => {
+            // Borra todos los libros de la tabla
+            await supabase.from('books').delete().neq('id', 0); // Borra todas las filas
             BookService.books = [];
             UI.renderBooks();
             UI.showToast('Biblioteca reiniciada.', 'info');
@@ -1363,10 +1401,8 @@ document.addEventListener('DOMContentLoaded', function() {
       const toIndex = BookService.books.indexOf(targetBook);
 
       if (fromIndex !== -1 && toIndex !== -1) {
-        // Mover el libro en el array
-        const [movedBook] = BookService.books.splice(fromIndex, 1);
+        const [movedBook] = BookService.books.splice(fromIndex, 1); // Mover el libro en el array
         BookService.books.splice(toIndex, 0, movedBook);
-        BookService.saveBooks();
         UI.renderBooks(); // Volver a renderizar para mostrar el nuevo orden
       }
     },
