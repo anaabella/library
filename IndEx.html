@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Anna's Library</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Color de la barra de estado para PWA -->
+  <meta name="theme-color" content="#a855f7">
+  <!-- Icono para dispositivos Apple -->
+  <link rel="apple-touch-icon" href="images/icon-192.png">
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link rel="manifest" href="manifest.json">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body class="min-h-screen">
+  <!-- Modal Editar Libro -->
+  <div id="edit-book-modal" class="modal fixed inset-0 flex items-center justify-center z-50 hidden">
+    <div class="modal-overlay absolute inset-0 bg-black opacity-80"></div>
+    <div class="modal-content rounded-lg w-full max-w-md p-6 mx-4 max-h-screen overflow-y-auto relative z-10">
+      <div class="flex justify-between items-center mb-4">
+        <h2 class="text-xl font-bold text-purple-400">Editar Libro</h2>
+        <button id="close-edit-book-modal" class="text-gray-400 hover:text-white">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      <form id="edit-book-form">
+        <input type="hidden" name="book-id">
+        <div class="mb-4">
+          <label class="block text-sm font-medium mb-1">Título</label>
+          <input type="text" name="title" required class="w-full bg-gray-700 border border-gray-600 rounded-md px-3 py-2 text-white">
+        </div>
+        <div class="mb-4">
+          <div class="autocomplete-container">
+            <label class="block text-sm font-medium mb-1">Autor</label>
+            <input type="text" name="author" required class="w-full bg-gray-700 border border-gray-600 rounded-md px-3 py-2 text-white" autocomplete="off">
+            <div class="author-autocomplete-list autocomplete-suggestions hidden"></div>
+          </div>
+        </div>
+        <div class="mb-4">
+          <div class="autocomplete-container">
+            <label class="block text-sm font-medium mb-1">Saga</label>
+            <input type="text" name="series" required class="w-full bg-gray-700 border border-gray-600 rounded-md px-3 py-2 text-white" autocomplete="off">
+            <div class="saga-autocomplete-list autocomplete-suggestions hidden"></div>
+          </div>
+        </div>
+        <div class="mb-4">
+          <label class="block text-sm font-medium mb-2">Portada</label>
+          <div class="flex gap-4 items-start">
+            <div class="relative w-24 flex-shrink-0">
+              <img id="edit-cover-preview" class="w-full rounded shadow-lg">
+            </div>
+            <div class="flex-grow">
+              <p class="text-xs mb-2 text-gray-400">Busca una nueva portada usando el título y autor.</p>
+              <button type="button" id="edit-fetch-cover-btn" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-md flex items-center justify-center">
+                <span>Buscar Portada</span>
+                <span id="edit-api-spinner" class="loading-spinner ml-2 hidden"></span>
+              </button>
+              <div id="edit-api-error" class="mt-2 text-red-400 text-sm hidden">
+                No se pudo encontrar la portada.
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="flex justify-end gap-3 mt-6">
+          <button type="button" id="cancel-edit-book-btn" class="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-md">Cancelar</button>
+          <button type="submit" class="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-md flex items-center"><span>Guardar Cambios</span></button>
+        </div>
+      </form>
+    </div>
+  </div>
+  <!-- Modal Eliminar Libro -->
+  <div id="delete-book-modal-saga" class="modal fixed inset-0 flex items-center justify-center z-50 hidden">
+    <div class="modal-overlay absolute inset-0 bg-black opacity-80"></div>
+    <div class="modal-content rounded-lg p-6 mx-4 relative z-10 text-center">
+      <h3 class="text-xl font-bold text-purple-400 mb-4">Eliminar Libro</h3>
+      <p id="delete-book-message" class="text-gray-300 mb-4"></p>
+      <div class="modal-buttons flex justify-end gap-3">
+        <button id="cancel-delete-book-saga-btn" class="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-md">Cancelar</button>
+        <button id="confirm-delete-book-saga-btn" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md">Eliminar</button>
+      </div>
+    </div>
+  </div>
+  <!-- Modal Reordenar Saga -->
+  <div id="reorder-saga-modal" class="modal fixed inset-0 flex items-center justify-center z-50 hidden">
+    <div class="modal-overlay absolute inset-0 bg-black opacity-80"></div>
+    <div class="modal-content rounded-lg w-full max-w-md p-6 mx-4 max-h-screen overflow-y-auto relative z-10">
+      <div class="flex justify-between items-center mb-4">
+        <h2 class="text-xl font-bold text-purple-400">Reordenar Libros de la Saga</h2>
+        <button id="close-reorder-saga-modal" class="text-gray-400 hover:text-white">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      <div id="reorder-saga-list" class="space-y-2 mb-4"></div>
+      <div class="flex justify-end gap-3 mt-6">
+        <button type="button" id="cancel-reorder-saga-btn" class="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-md">Cancelar</button>
+        <button type="button" id="save-reorder-saga-btn" class="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-md flex items-center"><span>Guardar Orden</span></button>
+      </div>
+    </div>
+  </div>
+  <!-- Modal Editar Saga -->
+  <div id="edit-saga-modal" class="modal fixed inset-0 flex items-center justify-center z-50 hidden">
+    <div class="modal-overlay absolute inset-0 bg-black opacity-80"></div>
+    <div class="modal-content rounded-lg w-full max-w-md p-6 mx-4 max-h-screen overflow-y-auto relative z-10">
+      <div class="flex justify-between items-center mb-4">
+        <h2 class="text-xl font-bold text-purple-400">Editar Saga</h2>
+        <button id="close-edit-saga-modal" class="text-gray-400 hover:text-white">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      <form id="edit-saga-form">
+        <div class="mb-4">
+          <label class="block text-sm font-medium mb-1">Nombre de la saga</label>
+          <input type="text" name="saga-name" required class="w-full bg-gray-700 border border-gray-600 rounded-md px-3 py-2 text-white">
+        </div>
+        <div class="mb-4">
+          <label class="block text-sm font-medium mb-1">Autor</label>
+          <input type="text" name="saga-author" required class="w-full bg-gray-700 border border-gray-600 rounded-md px-3 py-2 text-white">
+        </div>
+        <div class="flex justify-end gap-3 mt-6">
+          <button type="button" id="cancel-edit-saga-btn" class="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-md">Cancelar</button>
+          <button type="submit" class="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-md flex items-center"><span>Guardar Cambios</span></button>
+        </div>
+      </form>
+    </div>
+  </div>
+  <!-- Modal Añadir Libro a Saga -->
+  <div id="add-book-to-saga-modal" class="modal fixed inset-0 flex items-center justify-center z-50 hidden">
+    <div class="modal-overlay absolute inset-0 bg-black opacity-80"></div>
+    <div class="modal-content rounded-lg w-full max-w-md p-6 mx-4 max-h-screen overflow-y-auto relative z-10">
+      <div class="flex justify-between items-center mb-4">
+        <h2 class="text-xl font-bold text-purple-400">Añadir Libro a Saga</h2>
+        <button id="close-add-to-saga-modal" class="text-gray-400 hover:text-white">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      <form id="add-book-to-saga-form">
+        <input type="hidden" name="saga-name">
+        <input type="hidden" name="author-name">
+        <div class="mb-4">
+          <label class="block text-sm font-medium mb-1">Título del Libro</label>
+          <input type="text" name="title" required class="w-full bg-gray-700 border border-gray-600 rounded-md px-3 py-2 text-white">
+        </div>
+        <div class="mb-4">
+          <p class="text-sm"><span class="font-medium">Saga:</span> <span id="add-to-saga-name-display"></span></p>
+          <p class="text-sm"><span class="font-medium">Autor:</span> <span id="add-to-saga-author-display"></span></p>
+        </div>
+        <div class="mb-4">
+          <label class="block text-sm font-medium mb-2">Portada</label>
+          <!-- Cover options will change based on selection -->
+          <div id="add-to-saga-api-cover-option" class="cover-option">
+            <p class="text-xs mb-2 text-gray-400">Usa el título para buscar la portada.</p>
+            <button type="button" id="add-to-saga-fetch-cover-btn" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-md flex items-center justify-center">
+              <span>Buscar Portada</span>
+              <span id="add-to-saga-api-spinner" class="loading-spinner ml-2 hidden"></span>
+            </button>
+            <div id="add-to-saga-api-preview" class="mt-3 hidden">
+              <p class="text-sm mb-2">Portada encontrada:</p>
+              <div class="relative w-40 mx-auto">
+                <img id="add-to-saga-api-cover-preview" class="w-full rounded shadow-lg">
+              </div>
+            </div>
+            <div id="add-to-saga-api-error" class="mt-2 text-red-400 text-sm hidden">
+              No se pudo encontrar la portada.
+            </div>
+          </div>
+        </div>
+        <div class="flex justify-end gap-3 mt-6">
+          <button type="button" id="cancel-add-to-saga-btn" class="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-md">Cancelar</button>
+          <button type="submit" class="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-md flex items-center"><span>Añadir Libro</span></button>
+        </div>
+      </form>
+    </div>
+  </div>
+  <!-- Modal de Estadísticas -->
+  <div id="stats-modal" class="modal fixed inset-0 flex items-center justify-center z-50 hidden">
+    <div class="modal-overlay absolute inset-0 bg-black opacity-80"></div>
+    <div class="modal-content rounded-lg w-full max-w-3xl p-6 mx-4 max-h-screen overflow-y-auto relative z-10">
+      <div class="flex justify-between items-center mb-4">
+        <h2 class="text-xl font-bold text-purple-400">Estadísticas Detalladas</h2>
+        <button id="close-stats-modal" class="text-gray-400 hover:text-white">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <div class="chart-container"><canvas id="read-status-chart"></canvas></div>
+        <div class="chart-container"><canvas id="ratings-chart"></canvas></div>
+      </div>
+    </div>
+  </div>
+  <div class="container mx-auto px-4 py-8 max-w-7xl">
+    <header class="mb-8">
+      <div class="flex justify-between items-center mb-6">
+        <h1 class="text-3xl font-bold text-purple-400">Mi Biblioteca</h1>
+        <div class="settings-menu">
+          <button id="settings-btn" class="bg-gray-700 hover:bg-gray-600 text-white py-2 px-4 rounded-md flex items-center gap-2">
+            <i class="fas fa-cog"></i>
+            <span class="hidden md:inline">Ajustes</span>
+          </button>
+          <div id="settings-dropdown" class="settings-dropdown">
+            <button id="import-csv-btn" class="flex items-center gap-2 w-full px-4 py-3 hover:bg-gray-600">
+              <i class="fas fa-file-import text-blue-400 w-5 text-center"></i> Importar desde CSV
+            </button>
+            <button id="export-csv" class="flex items-center gap-2 w-full px-4 py-3 hover:bg-gray-600">
+              <i class="fas fa-file-csv text-green-400 w-5 text-center"></i> Exportar a CSV
+            </button>
+            <button id="restore-backup-btn" class="flex items-center gap-2 w-full px-4 py-3 hover:bg-gray-600">
+              <i class="fas fa-undo text-yellow-400 w-5 text-center"></i> Restaurar Backup
+            </button>
+            <button id="reset-library" class="flex items-center gap-2 w-full px-4 py-3 text-red-400 hover:bg-red-900/50">
+              <i class="fas fa-trash w-5 text-center"></i> Reiniciar Biblioteca
+            </button>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Control Bar -->
+      <div class="bg-gray-800 rounded-lg p-4 flex flex-col md:flex-row flex-wrap gap-4 items-center justify-between">
+        <div class="w-full flex flex-col sm:flex-row gap-4">
+          <div class="flex-shrink-0 flex gap-3">
+            <button id="new-book-btn" class="bg-purple-600 hover:bg-purple-700 text-white py-2 px-4 rounded-md flex items-center gap-2 w-full sm:w-auto justify-center">
+              <i class="fas fa-plus"></i> Nuevo Libro
+            </button>
+            <button id="random-book-btn" class="bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-md flex items-center gap-2 w-full sm:w-auto justify-center">
+                <i class="fas fa-random"></i> Recomendar
+            </button>
+          </div>
+          <div class="flex-grow flex gap-3">
+            <div class="relative flex-grow">
+              <input type="text" id="series-filter" placeholder="Buscar..." class="bg-gray-700 text-white py-2 px-4 rounded-md w-full h-full">
+              <i class="fas fa-search absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+            </div>
+            <div class="bg-gray-700 rounded-md flex">
+              <button data-sort="author" class="sort-btn py-2 px-3 rounded-l-md hover:bg-gray-600">Autor</button>
+              <button data-sort="series" class="sort-btn py-2 px-3 rounded-r-md bg-purple-600 hover:bg-purple-700 text-white">Saga</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Stats Section -->
+        <div id="stats-section" class="w-full md:w-auto flex items-center justify-around gap-2 text-sm text-gray-300 border-t border-gray-700 md:border-t-0 md:border-l md:pl-4 mt-4 md:mt-0 pt-4 md:pt-0 cursor-pointer" title="Ver estadísticas detalladas">
+          <div class="text-center"><span id="total-sagas" class="font-bold text-lg text-blue-400">0</span><p class="text-xs">Sagas</p></div>
+          <div class="text-center"><span id="completed-sagas" class="font-bold text-lg text-green-400">0</span><p class="text-xs">Completas</p></div>
+          <div class="text-center"><span id="read-count" class="font-bold text-lg text-purple-400">0</span><p class="text-xs">Leídos</p></div>
+          <div class="text-center"><span id="avg-rating" class="font-bold text-lg text-amber-500">0.0</span><p class="text-xs">Puntuación</p></div>
+        </div>
+      </div>
+    </header>
+    
+    <!-- Book Grid -->
+    <div id="book-grid">
+      <!-- Book cards will be generated here -->
+      <div id="initial-loader" class="text-center col-span-full text-gray-500 py-12">
+        <i class="fas fa-spinner fa-spin text-5xl mb-4"></i>
+        <p class="text-xl">Cargando tu biblioteca...</p>
+      </div>
+    </div>
+    
+    <!-- Reset Library -->
+    <input type="file" id="csv-file-input" class="hidden" accept=".csv">
+  </div>
+  
+  <!-- New Book Modal -->
+  <div id="new-book-modal" class="modal fixed inset-0 flex items-center justify-center z-50 hidden">
+    <div class="modal-overlay absolute inset-0 bg-black opacity-80"></div> <!-- Capa de fondo -->
+    <div class="modal-content rounded-lg w-full max-w-md p-6 mx-4 max-h-screen overflow-y-auto relative z-10"> <!-- Contenido del modal por encima -->
+      <div class="flex justify-between items-center mb-4">
+        <h2 class="text-xl font-bold text-purple-400">Agregar Nuevo Libro</h2>
+        <button id="close-modal" class="text-gray-400 hover:text-white">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      
+      <form id="new-book-form">
+        <div class="mb-4">
+          <label class="block text-sm font-medium mb-1">Título</label>
+          <input type="text" name="title" required class="w-full bg-gray-700 border border-gray-600 rounded-md px-3 py-2 text-white">
+        </div>
+        
+        <div class="mb-4">
+          <div class="autocomplete-container">
+            <label class="block text-sm font-medium mb-1">Autor</label>
+            <input type="text" name="author" required class="w-full bg-gray-700 border border-gray-600 rounded-md px-3 py-2 text-white" autocomplete="off">
+            <div id="author-autocomplete-list" class="author-autocomplete-list autocomplete-suggestions hidden"></div>
+          </div>
+        </div>
+        
+        <div class="mb-4">
+          <div class="autocomplete-container">
+            <label class="block text-sm font-medium mb-1">Saga</label>
+            <input type="text" name="series" class="w-full bg-gray-700 border border-gray-600 rounded-md px-3 py-2 text-white" autocomplete="off">
+            <div id="saga-autocomplete-list" class="saga-autocomplete-list autocomplete-suggestions hidden"></div>
+          </div>
+        </div>
+        
+        <div class="mb-4">
+          <label class="block text-sm font-medium mb-2">Portada</label>
+          <div class="grid grid-cols-3 gap-2 mb-3">
+            <div>
+              <input type="radio" name="cover-source" id="upload-cover" value="upload" class="hidden peer">
+              <label for="upload-cover" class="flex flex-col items-center justify-center p-2 bg-gray-700 text-center rounded-md cursor-pointer peer-checked:bg-purple-600 peer-checked:text-white hover:bg-gray-600">
+                <i class="fas fa-upload mb-1"></i>
+                <span class="text-xs">Subir</span>
+              </label>
+            </div>
+            <div>
+              <input type="radio" name="cover-source" id="api-cover" value="api" class="hidden peer" checked>
+              <label for="api-cover" class="flex flex-col items-center justify-center p-2 bg-gray-700 text-center rounded-md cursor-pointer peer-checked:bg-purple-600 peer-checked:text-white hover:bg-gray-600">
+                <i class="fas fa-search mb-1"></i>
+                <span class="text-xs">Buscar</span>
+              </label>
+            </div>
+            <div>
+              <input type="radio" name="cover-source" id="url-cover" value="url" class="hidden peer">
+              <label for="url-cover" class="flex flex-col items-center justify-center p-2 bg-gray-700 text-center rounded-md cursor-pointer peer-checked:bg-purple-600 peer-checked:text-white hover:bg-gray-600">
+                <i class="fas fa-link mb-1"></i>
+                <span class="text-xs">URL</span>
+              </label>
+            </div>
+          </div>
+          
+          <!-- Cover options will change based on selection -->
+          <div id="upload-cover-option" class="cover-option">
+            <label class="block w-full cursor-pointer bg-gray-800 border border-gray-600 rounded-md p-4 text-center">
+              <i class="fas fa-cloud-upload-alt text-2xl mb-2 text-gray-400"></i>
+              <p class="text-sm text-gray-400">Haz clic para seleccionar una imagen</p>
+              <input type="file" id="cover-file" accept="image/*" class="hidden">
+            </label>
+            <div id="upload-preview" class="mt-3 hidden">
+              <p class="text-sm mb-2">Vista previa:</p>
+              <div class="relative w-40 mx-auto">
+                <img id="cover-preview" class="w-full rounded shadow-lg">
+              </div>
+            </div>
+          </div>
+          
+          <div id="api-cover-option" class="cover-option hidden">
+            <p class="text-xs mb-2 text-gray-400">Usaremos el título y autor para buscar la portada</p>
+            <button type="button" id="fetch-cover-btn" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-md flex items-center justify-center">
+              <span>Buscar Portada</span>
+              <span id="api-spinner" class="loading-spinner ml-2 hidden"></span>
+            </button>
+            <div id="api-preview" class="mt-3 hidden">
+              <p class="text-sm mb-2">Portada encontrada:</p>
+              <div class="relative w-40 mx-auto">
+                <img id="api-cover-preview" class="w-full rounded shadow-lg">
+              </div>
+            </div>
+            <div id="api-error" class="mt-2 text-red-400 text-sm hidden">
+              No se pudo encontrar la portada. Por favor intenta con otro método.
+            </div>
+          </div>
+          
+          <div id="url-cover-option" class="cover-option hidden">
+            <div class="mb-2">
+              <input type="url" id="cover-url" placeholder="https://ejemplo.com/portada.jpg" 
+                     class="w-full bg-gray-700 border border-gray-600 rounded-md px-3 py-2 text-white">
+            </div>
+            <button type="button" id="validate-url-btn" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-md flex items-center justify-center">
+              <span>Validar URL</span>
+              <span id="url-spinner" class="loading-spinner ml-2 hidden"></span>
+            </button>
+            <div id="url-preview" class="mt-3 hidden">
+              <p class="text-sm mb-2">Vista previa:</p>
+              <div class="relative w-40 mx-auto">
+                <img id="url-cover-preview" class="w-full rounded shadow-lg">
+              </div>
+            </div>
+            <div id="url-error" class="mt-2 text-red-400 text-sm hidden">
+              No se pudo cargar la imagen desde la URL proporcionada.
+            </div>
+          </div>
+        </div>
+        
+        <div class="flex justify-end gap-3 mt-6">
+          <button type="button" id="cancel-btn" class="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-md">
+            Cancelar
+          </button>
+          <button type="submit" class="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-md flex items-center">
+            <span>Guardar</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Confirmation Modal -->
+  <div id="confirmation-modal" class="modal fixed inset-0 flex items-center justify-center z-50 hidden">
+    <div class="modal-overlay absolute inset-0 bg-black opacity-80"></div>
+    <div class="modal-content rounded-lg p-6 mx-4 relative z-10 text-center">
+      <h3 id="confirmation-title" class="text-xl font-bold text-purple-400 mb-4">Confirmar Acción</h3>
+      <p id="confirmation-message" class="text-gray-300"></p>
+      <div id="confirmation-input-container" class="hidden my-4">
+        <label id="confirmation-input-label" for="confirmation-input" class="block text-sm mb-1 text-gray-400"></label>
+        <input type="text" id="confirmation-input" class="w-full bg-gray-700 border border-gray-600 rounded-md px-3 py-2 text-white text-center" autocomplete="off">
+      </div>
+      <div class="modal-buttons">
+        <button id="confirm-cancel-btn" class="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-md">
+          Cancelar
+        </button>
+        <button id="confirm-ok-btn" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md">
+          Aceptar
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Container -->
+  <div id="toast-container" class="fixed bottom-5 right-5 z-[100] space-y-2">
+    <!-- Las notificaciones aparecerán aquí -->
+  </div>
+
+  <!-- Modal Restaurar Backup -->
+  <div id="restore-backup-modal" class="modal fixed inset-0 flex items-center justify-center z-50 hidden">
+    <div class="modal-overlay absolute inset-0 bg-black opacity-80"></div>
+    <div class="modal-content rounded-lg w-full max-w-md p-6 mx-4 max-h-screen overflow-y-auto relative z-10">
+      <div class="flex justify-between items-center mb-4">
+        <h2 class="text-xl font-bold text-purple-400">Restaurar desde Copia de Seguridad</h2>
+        <button id="close-restore-backup-modal" class="text-gray-400 hover:text-white">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      <p class="text-sm text-gray-400 mb-4">Selecciona una fecha para restaurar la biblioteca. Esta acción sobrescribirá tus datos actuales.</p>
+      <div id="backup-list" class="space-y-2 mb-4">
+        <!-- La lista de backups se generará aquí -->
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/color-thief/2.3.0/color-thief.umd.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>
