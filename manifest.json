@@ -1,21 +1,12 @@
 {
-  "name": "Anna's Library",
-  "short_name": "Library",
-  "description": "Una aplicación para organizar y hacer seguimiento de tus sagas de libros.",
-  "start_url": "./",
-  "display": "standalone",
-  "background_color": "#121212",
-  "theme_color": "#a855f7",
-  "icons": [
-    {
-      "src": "images/icon-192.png",
-      "sizes": "192x192",
-      "type": "image/png"
-    },
-    {
-      "src": "images/icon-512.png",
-      "sizes": "512x512",
-      "type": "image/png"
-    }
-  ]
-}
+    "name": "Anna's Library",
+      "short_name": "AnnaLib",
+        "start_url": "/",
+          "display": "standalone",
+            "background_color": "#0d0d0d",
+              "theme_color": "#a855f7",
+                "icons": [
+                    { "src": "/images/icon-192.png", "sizes": "192x192", "type": "image/png" },
+                        { "src": "/images/icon-512.png", "sizes": "512x512", "type": "image/png" }
+                          ]
+                          }
