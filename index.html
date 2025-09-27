@@ -1,55 +1,292 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="utf-8">
-    <title>Anna's Library</title>
-      <meta name="viewport" content="width=device-width,initial-scale=1">
-        <meta name="theme-color" content="#a855f7">
-          <link rel="manifest" href="manifest.json">
-            <link rel="apple-touch-icon" href="images/icon-192.png">
-              <script src="https://cdn.tailwindcss.com/3.4.0"></script>
-                <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-                  <link rel="stylesheet" href="css/style.css">
-                  </head>
-                  <body class="bg-gray-900 text-gray-100 min-h-screen">
-                    <div id="app" class="container mx-auto px-4 py-8 max-w-7xl">
-                        <header class="mb-8">
-                              <div class="flex justify-between items-center mb-6">
-                                      <h1 class="text-3xl font-bold text-purple-400">Mi Biblioteca</h1>
-                                              <div class="settings-menu relative">
-                                                        <button id="settings-btn" class="bg-gray-700 hover:bg-gray-600 text-white py-2 px-4 rounded-md flex items-center gap-2">
-                                                                    <i class="fas fa-cog"></i><span class="hidden md:inline">Ajustes</span>
-                                                                              </button>
-                                                                                        <div id="settings-dropdown" class="hidden absolute right-0 mt-2 w-48 bg-gray-800 rounded-md shadow-lg py-1 z-20">
-                                                                                                    <button id="import-csv-btn" class="flex items-center gap-2 w-full px-4 py-2 hover:bg-gray-700"><i class="fas fa-file-import text-blue-400"></i>Importar CSV</button>
-                                                                                                                <button id="export-csv" class="flex items-center gap-2 w-full px-4 py-2 hover:bg-gray-700"><i class="fas fa-file-csv text-green-400"></i>Exportar CSV</button>
-                                                                                                                            <button id="restore-backup-btn" class="flex items-center gap-2 w-full px-4 py-2 hover:bg-gray-700"><i class="fas fa-undo text-yellow-400"></i>Restaurar Backup</button>
-                                                                                                                                        <button id="reset-library" class="flex items-center gap-2 w-full px-4 py-2 text-red-400 hover:bg-red-900/50"><i class="fas fa-trash"></i>Reiniciar Biblioteca</button>
-                                                                                                                                                  </div>
-                                                                                                                                                          </div>
-                                                                                                                                                                </div>
-                                                                                                                                                                      <div class="bg-gray-800 rounded-lg p-4 flex flex-col md:flex-row flex-wrap gap-4 items-center justify-between">
-                                                                                                                                                                              <div class="flex gap-3">
-                                                                                                                                                                                        <button id="new-book-btn" class="btn-purple"><i class="fas fa-plus"></i> Nuevo Libro</button>
-                                                                                                                                                                                                  <button id="random-book-btn" class="btn-blue"><i class="fas fa-random"></i> Recomendar</button>
-                                                                                                                                                                                                          </div>
-                                                                                                                                                                                                                  <div class="flex gap-3 flex-1 md:flex-initial">
-                                                                                                                                                                                                                            <div class="relative flex-1"><input id="search" type="text" placeholder="Buscar..." class="w-full bg-gray-700 text-white px-4 py-2 rounded-md"><i class="fas fa-search absolute right-3 top-1/2 -translate-y-1/2 text-gray-400"></i></div>
-                                                                                                                                                                                                                                      <select id="sort" class="bg-gray-700 border border-gray-600 rounded-md px-3 py-2 text-white"><option value="series">Saga</option><option value="author">Autor</option><option value="title">Título</option></select>
-                                                                                                                                                                                                                                              </div>
-                                                                                                                                                                                                                                                      <div id="stats-section" class="flex gap-4 text-sm cursor-pointer" title="Ver estadísticas detalladas">
-                                                                                                                                                                                                                                                                <div class="text-center"><span id="total-sagas" class="font-bold text-lg text-blue-400">0</span><p class="text-xs">Sagas</p></div>
-                                                                                                                                                                                                                                                                          <div class="text-center"><span id="completed-sagas" class="font-bold text-lg text-green-400">0</span><p class="text-xs">Completas</p></div>
-                                                                                                                                                                                                                                                                                    <div class="text-center"><span id="read-count" class="font-bold text-lg text-purple-400">0</span><p class="text-xs">Leídos</p></div>
-                                                                                                                                                                                                                                                                                              <div class="text-center"><span id="avg-rating" class="font-bold text-lg text-amber-500">0.0</span><p class="text-xs">Puntuación</p></div>
-                                                                                                                                                                                                                                                                                                      </div>
-                                                                                                                                                                                                                                                                                                            </div>
-                                                                                                                                                                                                                                                                                                                </header>
-                                                                                                                                                                                                                                                                                                                    <main id="book-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4"></main>
-                                                                                                                                                                                                                                                                                                                      </div>
-                                                                                                                                                                                                                                                                                                                        <div id="modal-container"></div>
-                                                                                                                                                                                                                                                                                                                          <div id="toast-container" class="fixed bottom-5 right-5 z-[100] space-y-2"></div>
-                                                                                                                                                                                                                                                                                                                            <script type="module" src="js/app.js"></script>
-                                                                                                                                                                                                                                                                                                                            </body>
-                                                                                                                                                                                                                                                                                                                            </html>
-                                                                                                                                                                                                                                                                                                                            
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>YouTube Playlist Manager</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#ff4081">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Poppins', sans-serif;
+      background: linear-gradient(135deg, #1a2a6c, #b21f1f, #1a2a6c);
+      color: #fff;
+      min-height: 100vh;
+      padding: 2rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .container-card {
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(12px);
+      border-radius: 20px;
+      padding: 2.5rem;
+      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      max-width: 600px;
+      width: 100%;
+      text-align: center;
+    }
+
+    h1 {
+      font-size: 2rem;
+      margin-bottom: 1rem;
+      text-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    }
+
+    p {
+      margin-bottom: 1.5rem;
+      color: rgba(255, 255, 255, 0.9);
+      line-height: 1.6;
+    }
+
+    .file-input-label {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      border: 2px dashed rgba(255, 255, 255, 0.3);
+      border-radius: 16px;
+      padding: 2rem;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      background: rgba(0, 0, 0, 0.15);
+    }
+
+    .file-input-label:hover {
+      border-color: #ff4081;
+      background: rgba(255, 64, 129, 0.1);
+      transform: translateY(-2px);
+    }
+
+    input[type="file"] {
+      display: none;
+    }
+
+    .btn {
+      background: #ff4081;
+      color: white;
+      border: none;
+      padding: 0.8rem 1.8rem;
+      border-radius: 50px;
+      font-family: 'Poppins', sans-serif;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+      display: inline-block;
+      text-decoration: none;
+    }
+
+    .btn:hover {
+      background: #e91e63;
+      transform: translateY(-2px);
+      box-shadow: 0 6px 16px rgba(0,0,0,0.3);
+    }
+
+    .btn-reset {
+      background: transparent;
+      color: rgba(255, 255, 255, 0.8);
+      box-shadow: none;
+      margin-top: 1rem;
+    }
+
+    .btn-reset:hover {
+      color: white;
+      background: transparent;
+      transform: none;
+      box-shadow: none;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    #progress-bar {
+      width: 100%;
+      height: 8px;
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 4px;
+      margin-top: 1rem;
+      overflow: hidden;
+    }
+
+    #progress-bar-fill {
+      height: 100%;
+      background: #ffcccb;
+      width: 0%;
+      transition: width 0.4s ease;
+    }
+
+    .status {
+      margin-top: 1rem;
+      font-size: 1.1rem;
+    }
+
+    @media (max-width: 600px) {
+      body { padding: 1rem; }
+      .container-card { padding: 1.8rem; }
+      h1 { font-size: 1.7rem; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container-card">
+    <h1>🎵 YouTube Playlist Manager</h1>
+    <p>Administra tus listas de reproducción fácilmente</p>
+
+    <div id="upload-section">
+      <label for="epub-file" class="file-input-label">
+        <div class="mb-3">
+          <svg width="64" height="64" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <linearGradient id="yt-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#ff0000" />
+                <stop offset="100%" stop-color="#b21f1f" />
+              </linearGradient>
+            </defs>
+            <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 12 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" fill="url(#yt-gradient)" />
+          </svg>
+        </div>
+        <span class="font-semibold text-lg">Haz clic para subir un EPUB</span>
+        <span class="text-sm opacity-80">o arrástralo aquí</span>
+      </label>
+      <input type="file" id="epub-file" accept=".epub">
+    </div>
+
+    <div id="processing-section" class="hidden">
+      <p class="status" id="status-message">Leyendo archivo EPUB...</p>
+      <div id="progress-bar">
+        <div id="progress-bar-fill"></div>
+      </div>
+    </div>
+
+    <div id="result-section" class="hidden">
+      <p class="status" style="color: #aaffaa;">✅ ¡Archivo procesado con éxito!</p>
+      <a id="download-link" class="btn">Descargar EPUB Modificado</a>
+      <button id="reset-button" class="btn btn-reset">Volver a empezar</button>
+    </div>
+
+    <div id="error-section" class="hidden">
+      <p class="status" style="color: #ff9999;">❌ Error al procesar el archivo</p>
+      <button id="error-reset-button" class="btn btn-reset">Volver a empezar</button>
+    </div>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <script>
+    // Service Worker registration
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/service-worker.js');
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      const fileInput = document.getElementById('epub-file');
+      const uploadSection = document.getElementById('upload-section');
+      const processingSection = document.getElementById('processing-section');
+      const resultSection = document.getElementById('result-section');
+      const errorSection = document.getElementById('error-section');
+      const statusMessage = document.getElementById('status-message');
+      const progressBarFill = document.getElementById('progress-bar-fill');
+      const downloadLink = document.getElementById('download-link');
+      const resetButton = document.getElementById('reset-button');
+      const errorResetButton = document.getElementById('error-reset-button');
+      
+      function resetApp() {
+        uploadSection.classList.remove('hidden');
+        processingSection.classList.add('hidden');
+        resultSection.classList.add('hidden');
+        errorSection.classList.add('hidden');
+        fileInput.value = null;
+        progressBarFill.style.width = '0%';
+      }
+
+      fileInput.addEventListener('change', async (event) => {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        uploadSection.classList.add('hidden');
+        processingSection.classList.remove('hidden');
+        statusMessage.textContent = 'Leyendo archivo EPUB...';
+        progressBarFill.style.width = '0%';
+
+        try {
+          const zip = await JSZip.loadAsync(file);
+          const newZip = new JSZip();
+
+          const mimetypeFile = zip.file('mimetype');
+          if (mimetypeFile) {
+            const mimetypeContent = await mimetypeFile.async('string');
+            newZip.file('mimetype', mimetypeContent, { compression: 'STORE' });
+          } else {
+            throw new Error('Archivo "mimetype" no encontrado.');
+          }
+
+          const files = Object.keys(zip.files);
+          let processedCount = 0;
+          const totalFiles = files.length;
+          
+          for (const filename of files) {
+            if (filename === 'mimetype') {
+              processedCount++;
+              continue;
+            }
+
+            const fileEntry = zip.files[filename];
+            
+            if (fileEntry.dir) {
+              newZip.folder(filename);
+            } else {
+              const isContentFile = /\.(html|xhtml)$/i.test(filename) && !/(opf|ncx|xml|svg|css)/i.test(filename);
+              const fileData = await fileEntry.async(isContentFile ? 'string' : 'uint8array');
+
+              if (isContentFile) {
+                statusMessage.textContent = `Procesando: ${filename}`;
+                const regex = /["“”‘’'’‘«»„”]/g;
+                const newContent = fileData.replace(regex, '—');
+                newZip.file(filename, newContent);
+              } else {
+                newZip.file(filename, fileData);
+              }
+            }
+            
+            processedCount++;
+            progressBarFill.style.width = `${(processedCount / totalFiles) * 100}%`;
+          }
+
+          statusMessage.textContent = 'Generando nuevo EPUB...';
+          const blob = await newZip.generateAsync({
+            type: "blob",
+            mimeType: "application/epub+zip",
+            compression: "DEFLATE"
+          });
+          
+          const newFileName = file.name.replace(/\.epub$/i, '_modificado.epub');
+          downloadLink.href = URL.createObjectURL(blob);
+          downloadLink.download = newFileName;
+
+          processingSection.classList.add('hidden');
+          resultSection.classList.remove('hidden');
+
+        } catch (err) {
+          console.error("Error:", err);
+          processingSection.classList.add('hidden');
+          errorSection.classList.remove('hidden');
+        }
+      });
+
+      resetButton.addEventListener('click', resetApp);
+      errorResetButton.addEventListener('click', resetApp);
+    });
+  </script>
+</body>
+</html>
